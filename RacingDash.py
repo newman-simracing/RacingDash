@@ -54,6 +54,7 @@ from ctypes import wintypes
 from raceessentials_lib.sim_info import info
 
 updateConfig = False
+#Test
 
 configPath = "apps/python/RacingDash/config.ini"
 
