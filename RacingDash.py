@@ -1,13 +1,15 @@
+
  ##################################################
 # RaceEssentials by Filip Topuzovic (Topuz)
-# 
+#
 # Version - v1.4.8
-# 
+#
 # Credits:
 # Erwin Schmidt - Accurate delta calculation
 # Jorge Alves - Inspiration and some app logic
 # Rombik - Shared memory Sim Info code
-# Minolin, Neys - Thanks for your contributions and inspiration to always do more and better
+# Minolin, Neys - Thanks for your contributions and inspiration to always do
+# more and better
 # Yachanay - TC/ABS/DRS performance optimization
 #
 # None of the code below is to be redistributed
@@ -34,16 +36,27 @@
 # - fixed the Porsche 919 RPM bar not working
 #
 ##################################################
-
-
-import ac, acsys, sys, os.path, platform, datetime, pickle, bisect, configparser, threading, raceessentials_lib.win32con, codecs, json, re
+import ac
+import acsys
+import sys
+import os.path
+import platform
+import datetime
+import pickle
+import bisect
+import configparser
+import threading
+import raceessentials_lib.win32con
+import codecs
+import json
+import re
 # 1.4.7
 import traceback
 
 if platform.architecture()[0] == "64bit":
-	sysdir = os.path.dirname(__file__)+'/stdlib64'
+	sysdir = os.path.dirname(__file__) + '/stdlib64'
 else:
-	sysdir = os.path.dirname(__file__)+'/stdlib'
+	sysdir = os.path.dirname(__file__) + '/stdlib'
 
 sys.path.insert(0, sysdir)
 os.environ['PATH'] = os.environ['PATH'] + ";."
@@ -55,7 +68,6 @@ from raceessentials_lib.sim_info import info
 
 updateConfig = False
 #Test
-
 configPath = "apps/python/RacingDash/config.ini"
 
 config = configparser.ConfigParser()
@@ -175,6 +187,7 @@ lastLapValue = 0
 previousBestLapValue = 0
 bestLapValue = 0
 previousPersonalBestLapValue = 0
+previousLastLapValue = 0
 fuelStartValue = 0
 fuelEndValue = 0
 relevantLapsNumber = 0
@@ -192,6 +205,8 @@ timer = 0
 previousLapProgressValue = 0
 posList = []
 timeList = []
+lastPosList = []
+lastTimeList = []
 bestPosList = []
 bestTimeList = []
 personalBestPosList = []
@@ -252,8 +267,8 @@ def acMain(ac_version):
 	trackConfigValue = ac.getTrackConfiguration(0)
 
 	filePersonalBest = personalBestDir + carValue + "_" + trackValue + trackConfigValue + "_pb.ini"
-	filePersonalBestPosList = personalBestDir + carValue + "_" +trackValue +trackConfigValue + "_pbposlist.ini"
-	filePersonalBestTimeList = personalBestDir + carValue + "_" +trackValue +trackConfigValue + "_pbtimelist.ini"
+	filePersonalBestPosList = personalBestDir + carValue + "_" + trackValue + trackConfigValue + "_pbposlist.ini"
+	filePersonalBestTimeList = personalBestDir + carValue + "_" + trackValue + trackConfigValue + "_pbtimelist.ini"
 	fileCompoundButton = configDir + "compoundButton.ini"
 	filePedalButton = configDir + "pedalButton.ini"
 	fileDeltaButton = configDir + "deltaButton.ini"
@@ -326,12 +341,12 @@ def acMain(ac_version):
 	 
 	#Speed
 	speedLabel = ac.addLabel(appWindow, "---")
-	ac.setPosition(speedLabel, (78 + centralOffset) * scale, 8 * scale)
+	ac.setPosition(speedLabel, (65 + centralOffset) * scale, 8 * scale)
 	ac.setFontSize(speedLabel, 36 * scale)
 	ac.setCustomFont(speedLabel, "Consolas", 0, 1)
-	ac.setFontAlignment(speedLabel, "center")
+	ac.setFontAlignment(speedLabel, "left")
 	
-	#RPM 
+	#RPM
 	rpmLabel = ac.addLabel(appWindow, "---- rpm")
 	ac.setPosition(rpmLabel, 140 * scale, 15 * scale)
 	ac.setFontSize(rpmLabel, 13 * scale)
@@ -343,18 +358,18 @@ def acMain(ac_version):
 	ac.setFontSize(currentLapLabel, 24 * scale)
 	ac.setCustomFont(currentLapLabel, "Consolas", 0, 1)
 	
+	#Last lap
+	lastLapLabel = ac.addLabel(appWindow, "L: -:--.---")
+	ac.setPosition(lastLapLabel, 217 * scale, 35 * scale)
+	ac.setFontSize(lastLapLabel, 18 * scale)
+	ac.setCustomFont(lastLapLabel, "Consolas", 0, 1)
+
 	#Best lap
 	bestLapLabel = ac.addLabel(appWindow, "B: -:--.---")
-	ac.setPosition(bestLapLabel, 217 * scale, 35 * scale)
+	ac.setPosition(bestLapLabel, 217 * scale, 55 * scale)
 	ac.setFontSize(bestLapLabel, 18 * scale)
 	ac.setCustomFont(bestLapLabel, "Consolas", 0, 1)  
 
-	#Last lap
-	lastLapLabel = ac.addLabel(appWindow, "L: -:--.---")
-	ac.setPosition(lastLapLabel, 217 * scale, 55 * scale)
-	ac.setFontSize(lastLapLabel, 18 * scale)
-	ac.setCustomFont(lastLapLabel, "Consolas", 0, 1)
-	
 	#Personal best lap
 	personalBestLapLabel = ac.addLabel(appWindow, "P: -:--.---")
 	ac.setPosition(personalBestLapLabel, 217 * scale, 75 * scale)
@@ -457,7 +472,7 @@ def acMain(ac_version):
 
 	#Delta
 	deltaLabel = ac.addLabel(appWindow, "--.--")
-	ac.setPosition(deltaLabel, 399* scale, 53 * scale)
+	ac.setPosition(deltaLabel, 399 * scale, 53 * scale)
 	ac.setFontSize(deltaLabel, 24 * scale)
 	ac.setCustomFont(deltaLabel, "Consolas", 0, 1)
 	ac.setFontAlignment(deltaLabel, "center")
@@ -476,13 +491,13 @@ def acMain(ac_version):
 	
     #System clock
 	systemClockLabel = ac.addLabel(appWindow, "Time: --:--")
-	ac.setPosition(systemClockLabel, 506 * scale, 6 * scale)
+	ac.setPosition(systemClockLabel, 496 * scale, 6 * scale)
 	ac.setFontSize(systemClockLabel, 13 * scale) 
 	ac.setCustomFont(systemClockLabel, "Consolas", 0, 1)
 
 	#Session time
 	sessionTimeLabel = ac.addLabel(appWindow, "Rem: --:--")
-	ac.setPosition(sessionTimeLabel, 513 * scale, 21 * scale)
+	ac.setPosition(sessionTimeLabel, 503 * scale, 21 * scale)
 	ac.setFontSize(sessionTimeLabel, 13 * scale)
 	ac.setCustomFont(sessionTimeLabel, "Consolas", 0, 1)
 	
@@ -512,35 +527,35 @@ def acMain(ac_version):
 	
 	#Ambient temperature
 	temperatureLabel = ac.addLabel(appWindow, "Tmp: --C/--C")
-	ac.setPosition(temperatureLabel, 110 * scale, 83 * scale) 
+	ac.setPosition(temperatureLabel, 140 * scale, 97 * scale) 
 	ac.setFontSize(temperatureLabel, 13 * scale)
 	ac.setCustomFont(temperatureLabel, "Consolas", 0, 1)
 
 	#Track grip
 	trackGripLabel = ac.addLabel(appWindow, "Track: --%")
-	ac.setPosition(trackGripLabel, 95 * scale, 97 * scale)
+	ac.setPosition(trackGripLabel, 125 * scale, 111 * scale)
 	ac.setFontSize(trackGripLabel, 13 * scale)
 	ac.setCustomFont(trackGripLabel, "Consolas", 0, 1)
 
-	#Tyre compound 
-	tyreCompoundLabel = ac.addLabel(appWindow, "--")                 
-	ac.setPosition(tyreCompoundLabel, 95 * scale, 111 * scale)
-	ac.setFontSize(tyreCompoundLabel, 13 * scale)
-	ac.setCustomFont(tyreCompoundLabel, "Consolas", 0, 1)
+	#Tyre compound
+	#tyreCompoundLabel = ac.addLabel(appWindow, "--")                 
+	#ac.setPosition(tyreCompoundLabel, 105 * scale, 111 * scale)
+	#ac.setFontSize(tyreCompoundLabel, 13 * scale)
+	#ac.setCustomFont(tyreCompoundLabel, "Consolas", 0, 1)
 
-    #Possible New Laptime 
+    #Possible New Laptime
 	PossibleNewLaptimLable = ac.addLabel(appWindow, "-:--.---")
 	ac.setPosition(PossibleNewLaptimLable, 369 * scale, 93 * scale)
 	ac.setFontSize(PossibleNewLaptimLable, 13 * scale)
 	ac.setCustomFont(PossibleNewLaptimLable, "Consolas", 0, 1)
 
 	#Compound-Button
-	compoundButton = ac.addButton(appWindow, "")
-	ac.setPosition(compoundButton, 583 * scale, 100 * scale)
-	ac.setSize(compoundButton, 120 * scale, 27 * scale)
-	ac.drawBorder(compoundButton, 0)
-	ac.setBackgroundOpacity(compoundButton, 0)
-	ac.addOnClickedListener(compoundButton, compoundButtonClicked)
+	#compoundButton = ac.addButton(appWindow, "")
+	#ac.setPosition(compoundButton, 583 * scale, 100 * scale)
+	#ac.setSize(compoundButton, 120 * scale, 27 * scale)
+	#ac.drawBorder(compoundButton, 0)
+	#ac.setBackgroundOpacity(compoundButton, 0)
+	#ac.addOnClickedListener(compoundButton, compoundButtonClicked)
 
     #PedalButton
 	pedalButton = ac.addButton(appWindow, "")
@@ -591,8 +606,8 @@ def acUpdate(deltaT):
 	global trackConfigValue
 	
 	global oldStatusValue, resetTrigger, outLap, carWasInPit, timerData, timerDisplay, timerDelay, previousLapValue, switcher
-	global deltaResolution, updateDelta, deltaTimer, timer, previousLapProgressValue, posList, timeList, bestPosList, bestTimeList, prevt, prevt2, ttb, ttb_old, ttpb, ttpb_old
-	global turboMaxValue, lapValidityValue, lastLapValue, previousBestLapValue, bestLapValue, previousPersonalBestLapValue, fuelStartValue, fueEndValue, relevantLapsNumber, fuelSpentValue, fuelPerLapValue
+	global deltaResolution, updateDelta, deltaTimer, timer, previousLapProgressValue, posList, timeList,lastPosList,lastTimeList, bestPosList, bestTimeList, prevt, prevt2, ttb, ttb_old, ttpb, ttpb_old
+	global turboMaxValue, lapValidityValue, lastLapValue, previousBestLapValue, previousLastLapValue, bestLapValue, previousPersonalBestLapValue,previousLastLapValue,  fuelStartValue, fueEndValue, relevantLapsNumber, fuelSpentValue, fuelPerLapValue
 	global compounds, modCompound, idealPressureFront, idealPressureRear, minimumOptimalTemperature, maximumOptimalTemperature
 
 	global speedValueKPH, rpmPercentageValue, maxPowerRpmPercentageValue, turboPercentageValue, kersChargeValue, kersInputValue, tyreWearValue, slipRatioValue, ttpb, clutchValue, brakeValue, throttleValue, ffbValue, ersCurrentKJValue, ersMaxJValue
@@ -663,7 +678,7 @@ def acUpdate(deltaT):
 				tyreWearValue = info.physics.tyreWear
 				tyreCompoundValue = info.graphics.tyreCompound
 				flagValue = info.graphics.flag
-				tyreCompoundShort = tyreCompoundValue[tyreCompoundValue.find("(")+1:tyreCompoundValue.find(")")]
+				tyreCompoundShort = tyreCompoundValue[tyreCompoundValue.find("(") + 1:tyreCompoundValue.find(")")]
 				tyreCompoundCleaned = re.sub('\_+$', '', re.sub(r'[^\w]+', '_', tyreCompoundValue)).lower()
 				positionBoardValue = ac.getCarLeaderboardPosition(0)
 				positionValue = ac.getCarRealTimeLeaderboardPosition(0)
@@ -689,6 +704,7 @@ def acUpdate(deltaT):
 				lapValidityValue = 0
 				ac.setFontColor(lastLapLabel, 1, 1, 1, 1)
 				lastLapValue = 0
+				previousLastLapValue = 0
 				ac.setText(lastLapLabel, "L: -:--.---")
 				previousBestLapValue = 0
 				bestLapValue = 0
@@ -702,6 +718,8 @@ def acUpdate(deltaT):
 				prevt = 0
 				prevt2 = 0
 				ac.setText(deltaLabel, "--.--")
+				lastPosList = []
+				lastTimeList = []
 				bestPosList = []
 				bestTimeList = []
 			elif resetTrigger == 0 and currentLapValue > 500:
@@ -709,6 +727,7 @@ def acUpdate(deltaT):
 			if (currentLapValue < 1000 and lapValue == 0 and (speedValueKPH > 10 or speedValueMPH > 10)) or sessionTypeValue == 2:
 				outLap = 0
 			
+		
 			###START DATA DISPLAY
 
 			#Gear
@@ -762,10 +781,10 @@ def acUpdate(deltaT):
 				ac.setFontColor(currentLapLabel, 1, 1, 1, 1)
 				
 			#Tyre compound
-			if compoundButtonValue:
-				ac.setText(tyreCompoundLabel, "{}: {}C-{}C".format(tyreCompoundShort, minimumOptimalTemperature, maximumOptimalTemperature))
-			else:
-				ac.setText(tyreCompoundLabel, "{}: {}psi/{}psi".format(tyreCompoundShort, idealPressureFront, idealPressureRear))
+			#if compoundButtonValue:
+			#	ac.setText(tyreCompoundLabel, "{}: {}C-{}C".format(tyreCompoundShort, minimumOptimalTemperature, maximumOptimalTemperature))
+			#else:
+			#	ac.setText(tyreCompoundLabel, "{}: {}psi/{}psi".format(tyreCompoundShort, idealPressureFront, idealPressureRear))
 			
 			#Delta
 			deltaTimer += deltaT
@@ -833,6 +852,33 @@ def acUpdate(deltaT):
 				elif personalBestLapValue == 0 and deltaButtonValue == 1:
 					ac.setText(deltaLabel, "--.--")
 					ac.setFontColor(deltaLabel, 1, 1, 1, 1)
+				
+				if lastLapValue and deltaButtonValue == 2:
+				    i = bisect.bisect_right(lastPosList, lapProgressValue) - 1
+				    c = (lastTimeList[i + 1] - lastTimeList[i]) / (lastPosList[i + 1] - lastPosList[i])
+				    interpolatedLapValue = lastTimeList[i] + c * (lapProgressValue - lastPosList[i])
+				    t = (currentLapValue - interpolatedLapValue) / 1000
+			
+				    #if t == 0:
+						#ac.setText(deltaLabel, "--.--")
+						#ac.setFontColor(deltaLabel, 1, 1, 1, 1)
+					#elif t > 0:
+						#ac.setText(deltaLabel, "{:+.2f}".format(t))
+						#ac.setFontColor(deltaLabel, 1, 0.18, 0.18, 1)
+				    #else:
+						#ac.setText(deltaLabel, "{:+.2f}".format(t))
+						#ac.setFontColor(deltaLabel, 0.18, 1, 0.18, 1)
+
+				    #if prevt2:
+					    #ttb_old = ttb
+					    #ttb = 2 * t - prevt - prevt2
+
+				    #prevt2 = float(prevt)
+				    #prevt = float(t)
+
+				elif lastLapValue == 0 and deltaButtonValue == 2:
+				    ac.setText(deltaLabel, "--.--")
+				    ac.setFontColor(deltaLabel, 1, 1, 1, 1)
 			
 			elif timer > updateDelta and currentLapValue > 4000 and carWasInPit:
 				timer = 0
@@ -871,6 +917,21 @@ def acUpdate(deltaT):
 					else:
 						ac.setText(deltaLabel, "{:+.3f}".format(t))
 						ac.setFontColor(deltaLabel, 0.18, 1, 0.18, 1)
+
+				if lastBestLapValue and deltaButtonValue == 2 and lapValue > 0:
+					if previousLastLapValue and previousLastLapValue > lastBestLapValue:
+						t = (lastLapValue - previousLastLapValue) / 1000
+					else:
+						t = (lastLapValue - lastLapValue) / 1000
+					if t == 0:
+						ac.setText(deltaLabel, "--.--")
+						ac.setFontColor(deltaLabel, 1, 1, 1, 1)
+					elif t > 0:
+						ac.setText(deltaLabel, "{:+.3f}".format(t))
+						ac.setFontColor(deltaLabel, 1, 0.18, 0.18, 1)
+					else:
+						ac.setText(deltaLabel, "{:+.3f}".format(t))
+						ac.setFontColor(deltaLabel, 0.18, 1, 0.18, 1)
 			
 		
 			
@@ -878,14 +939,14 @@ def acUpdate(deltaT):
 			#Possible New Laptime
 			if bestLapValue and deltaButtonValue == 0 and lapValue > 0:
 				PossibleNewPersonalBestLap = bestLapValue + (prevt * 1000)
-				PossibleNewLaptimSeconds = ((PossibleNewPersonalBestLap / 1000) % 60 ) 
-				PossibleNewLaptimMinutes = ((PossibleNewPersonalBestLap // 1000) // 60 )
+				PossibleNewLaptimSeconds = ((PossibleNewPersonalBestLap / 1000) % 60) 
+				PossibleNewLaptimMinutes = ((PossibleNewPersonalBestLap // 1000) // 60)
 				ac.setText(PossibleNewLaptimLable, "{:.0f}:{:06.3f}".format(PossibleNewLaptimMinutes, PossibleNewLaptimSeconds))
 
 			if personalBestLapValue and deltaButtonValue == 1 and lapValue > 0:
 				PossibleNewPersonalBestLap = personalBestLapValue + (prevt * 1000)
-				PossibleNewLaptimSeconds = ((PossibleNewPersonalBestLap / 1000) % 60 ) 
-				PossibleNewLaptimMinutes = ((PossibleNewPersonalBestLap // 1000) // 60 )
+				PossibleNewLaptimSeconds = ((PossibleNewPersonalBestLap / 1000) % 60) 
+				PossibleNewLaptimMinutes = ((PossibleNewPersonalBestLap // 1000) // 60)
 				ac.setText(PossibleNewLaptimLable, "{:.0f}:{:06.3f}".format(PossibleNewLaptimMinutes, PossibleNewLaptimSeconds))
 
 
@@ -896,9 +957,10 @@ def acUpdate(deltaT):
 				timerDisplay = 0
 
 				#Reset previous laps helper
-				if currentLapValue > 4000 and (previousBestLapValue > 0 or previousPersonalBestLapValue > 0):
+				if currentLapValue > 4000 and (previousBestLapValue > 0 or previousPersonalBestLapValue > 0 or previousLastLapValue > 0):
 					previousBestLapValue = 0
 					previousPersonalBestLapValue = 0
+					previousLastLapValue = 0
 					
 				#Car in pit check
 				if carInPitValue:
@@ -929,14 +991,10 @@ def acUpdate(deltaT):
 				
 				#Tyre wear
 				if showTyreWear:
-					ac.setText(tyreLabelWearFL, "Wear:{:.0f}".format(tyreWearValue[0]))
+					ac.setText(tyreLabelWearFL, "Wear:{:.0f}".format(max(100 - (100 - tyreWearValue[0]) * tyreWearScale, 0)))
 					ac.setText(tyreLabelWearFR, "{:.0f}".format(max(100 - (100 - tyreWearValue[1]) * tyreWearScale, 0)))
-					ac.setText(tyreLabelWearRL, "{:.0f}".format(tyreWearValue[2]))
+					ac.setText(tyreLabelWearRL, "{:.0f}".format(max(100 - (100 - tyreWearValue[2]) * tyreWearScale, 0)))
 					ac.setText(tyreLabelWearRR, "{:.0f}".format(max(100 - (100 - tyreWearValue[3]) * tyreWearScale, 0)))
-                    #ac.setText(tyreLabelWearFL, "Wear:{:.0f}".format(max(100 - (100 - tyreWearValue[0]) * tyreWearScale, 0)))
-					#ac.setText(tyreLabelWearFR, "{:.0f}".format(max(100 - (100 - tyreWearValue[1]) * tyreWearScale, 0)))
-					#ac.setText(tyreLabelWearRL, "{:.0f}".format(max(100 - (100 - tyreWearValue[2]) * tyreWearScale, 0)))
-					#ac.setText(tyreLabelWearRR, "{:.0f}".format(max(100 - (100 - tyreWearValue[3]) * tyreWearScale, 0)))
 					
 				#Tyre temperatures
 				ac.setText(tyreLabelTempFL, "Temp:{:.0f}".format(tyreTemperatureValue[0]))
@@ -1119,13 +1177,16 @@ def acUpdate(deltaT):
 
 					#Last lap
 					lastLapValue = info.graphics.iLastTime
+					previousLastLapValue = lastLapValue
 					lastLapValueSeconds = (lastLapValue / 1000) % 60
 					lastLapValueMinutes = (lastLapValue // 1000) // 60
 					if lapValidityValue:
 						ac.setFontColor(lastLapLabel, 1, 0.18, 0.18, 1)
 					else:
 						ac.setFontColor(lastLapLabel, 1, 1, 1, 1)
-					ac.setText(lastLapLabel, "L: {:.0f}:{:06.3f}".format(lastLapValueMinutes, lastLapValueSeconds))
+						ac.setText(lastLapLabel, "L: {:.0f}:{:06.3f}".format(lastLapValueMinutes, lastLapValueSeconds))
+						lastPosList = list(posList)#LastLapChange
+						lastTimeList = list(timeList)#LastLapChange
 
 					#Best lap
 					if lapValidityValue != 1:
@@ -1262,19 +1323,19 @@ def onFormRender(deltaT):
 
     #Flags
 	ac.glColor4f(1, 1, 1, 0.3)
-	ac.glQuad(360 * scale, 3 * scale, 14 * scale, 14 * scale)
+	ac.glQuad(360 * scale, 3 * scale, 77 * scale, 14 * scale)
 	ac.glColor4f(1, 1, 1, 0.3)
-	ac.glQuad(360 * scale, 20 * scale, 14 * scale, 14 * scale)
+	ac.glQuad(360 * scale, 20 * scale, 77 * scale, 14 * scale)
 	
 	#Yellow
 	if flagValue == 2:
 		ac.glColor4f(1, 1, 0, 1)
-		ac.glQuad(360 * scale, 3 * scale, 14 * scale, 14 * scale)
+		ac.glQuad(360 * scale, 3 * scale, 77 * scale, 14 * scale)
 	
 	#Blue
 	if flagValue == 1:
 		ac.glColor4f(0.18, 0.46, 1, 1)
-		ac.glQuad(360 * scale, 20 * scale, 14 * scale, 14 * scale)
+		ac.glQuad(360 * scale, 20 * scale, 77 * scale, 14 * scale)
 
 	
 #Do on AC shutdown
@@ -1312,14 +1373,14 @@ def deltaButtonClicked(*args):
 		ttpb = 0
 
 
-def compoundButtonClicked(*args):
-	global compoundButtonValue
+#def compoundButtonClicked(*args):
+#	global compoundButtonValue
 	
-	if compoundButtonValue == 1:
-		compoundButtonValue = 0
+#	if compoundButtonValue == 1:
+#		compoundButtonValue = 0
 		
-	elif compoundButtonValue == 0:
-		compoundButtonValue = 1
+#	elif compoundButtonValue == 0:
+#		compoundButtonValue = 1
 
 def pedalButtonClicked(*args):
 	global pedalButtonValue
@@ -1383,9 +1444,8 @@ def listenKey2():
 		msg = ctypes.wintypes.MSG()
 		while listenKeyActive:
 			if ctypes.windll.user32.GetMessageA(ctypes.byref(msg), None, 0, 0) != 0:
-				if msg.message == raceessentials_lib.win32con.WM_HOTKEY:
-					compoundButtonClicked()
-
+				#if msg.message == raceessentials_lib.win32con.WM_HOTKEY:
+					#compoundButtonClicked()
 				ctypes.windll.user32.TranslateMessage(ctypes.byref(msg))
 				ctypes.windll.user32.DispatchMessageA(ctypes.byref(msg))
 	finally:
